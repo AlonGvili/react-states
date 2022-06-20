@@ -14,7 +14,10 @@
     "inlineSources": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "strict": true
+    "strict": true,
+    "strictNullChecks": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true
   },
   "exclude": [
     "node_modules",
@@ -23,7 +26,7 @@
     "lib",
     "demo-src",
     "vite.config.ts",
-    "src/index.test.ts",
+    "src/index.test.tsx",
     "src/result.test.ts"
   ]
 }

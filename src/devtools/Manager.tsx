@@ -1,31 +1,41 @@
-import { TEvent, TContext, TTransitions } from '../';
+import { IAction, IState } from '../';
 
 export type DevtoolMessage =
   | {
       type: 'dispatch';
-      event: TEvent;
+      action: IAction;
       ignored: boolean;
     }
   | {
       type: 'state';
-      context: {
+      state: {
         state: string;
       };
       triggerTransitions: () => void;
     }
   | {
       type: 'transitions';
-      transitions: TTransitions;
+      transitions: {
+        [key: string]: {
+          [key: string]: Function;
+        };
+      };
+    }
+  | {
+      type: 'command';
+      command: {
+        cmd: string;
+      };
     };
 
 export type HistoryItem =
   | {
       type: 'state';
-      context: TContext;
+      state: IState;
     }
   | {
-      type: 'event';
-      event: TEvent;
+      type: 'action';
+      action: IAction;
       ignored: boolean;
     };
 
@@ -33,19 +43,33 @@ export type StatesData = {
   [id: string]: {
     isMounted: boolean;
     history: HistoryItem[];
-    transitions: TTransitions;
+    transitions: {
+      [key: string]: {
+        [key: string]: Function;
+      };
+    };
     triggerTransitions: () => void;
   };
 };
 
 export type Subscription = (statesData: StatesData) => () => void;
 
+function debounce(func: (...args: any[]) => void, timeout: number) {
+  let timer: NodeJS.Timer;
+  return (...args: any[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func(...args);
+    }, timeout);
+  };
+}
+
 export class Manager {
   private subscriptions: Function[] = [];
   states: StatesData = {};
-  private notify() {
+  private notify = debounce(() => {
     this.subscriptions.forEach((cb) => cb(this.states));
-  }
+  }, 100);
   private ensureStates(id: string) {
     if (!this.states[id]) {
       this.states[id] = {
@@ -69,18 +93,19 @@ export class Manager {
           ...this.states,
           [id]: {
             ...this.states[id],
+            isMounted: true,
             history: isFirstState
               ? [
                   ...this.states[id].history,
                   {
                     type: 'state',
-                    context: message.context,
+                    state: message.state,
                   },
                 ]
               : [
                   {
                     type: 'state',
-                    context: message.context,
+                    state: message.state,
                   },
                   ...this.states[id].history,
                 ],
@@ -89,6 +114,7 @@ export class Manager {
         };
         break;
       }
+
       case 'transitions': {
         this.states = {
           ...this.states,
@@ -106,8 +132,8 @@ export class Manager {
             ...this.states[id],
             history: [
               {
-                type: 'event',
-                event: message.event,
+                type: 'action',
+                action: message.action,
                 ignored: message.ignored,
               },
               ...this.states[id].history,
